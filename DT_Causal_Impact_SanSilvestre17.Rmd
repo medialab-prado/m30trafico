@@ -1,0 +1,184 @@
+---
+title: "DT_Causal_Impact_SanSilvestre17"
+output: html_document
+---
+
+
+```{r}
+library('CausalImpact')
+library(readr)
+library(dplyr)
+library(imputeTS)
+```
+
+
+```{r}
+
+DatosSalSIlvestre17 <- read_csv("~/RStudio/Dataton2017/datasets/trafico/201701_DatosTrafico.csv", 
+    col_types = cols(fecha = col_datetime(format = " %Y-%m-%d  %H:%M:%S")))
+#View(DatosTrafico1704)
+
+```
+
+```{r}
+summary(DatosSalSIlvestre17)
+```
+
+
+
+
+```{r}
+#outliers intensidad
+
+outlier_intensidad <- boxplot.stats(DatosSalSIlvestre17$intensidad)$out
+
+boxplot(DatosSalSIlvestre17$intensidad, main="intensidad", boxwex=0.1)
+
+mtext(paste("Outliers: ", paste(outlier_intensidad, collapse=", ")), cex=0.6)
+```
+
+```{r}
+#Agrupamos por punto de medida 
+DatosSalSIlvestre17 %>% 
+  filter(intensidad %in% outlier_intensidad ) %>%
+  group_by(identif) %>% 
+  dplyr::summarise(n = n()) %>% 
+  arrange(desc(n))  
+```
+
+#PM10981
+
+
+```{r}
+#Escojo dos puntos de medida de los outliers en lugares opuestos en la M30
+#PM20852
+#16NC75PM01
+
+DatosSalSIlvestre17 %>% 
+  filter(identif %in% c("PM10981") ) %>%
+  group_by(fecha) %>% 
+#  dplyr::summarise(n = n()) %>% 
+  arrange(desc(fecha))  
+
+
+
+#DatosTrafico1704[DatosTrafico1704$identif == "PM20852", c(2,4) ]
+#DatosTrafico1704[DatosTrafico1704$identif == "16NC75PM01", c(2,4) ]
+
+```
+
+
+```{r}
+PM10981 <- select(DatosSalSIlvestre17 %>% 
+  filter(identif %in% c("PM10981") ) %>%
+  arrange(desc(fecha))  
+,  fecha, intensidad)
+
+```
+
+
+```{r}
+PM20852 <- select(DatosSalSIlvestre17 %>% 
+  filter(identif %in% c("PM20852") ) %>%
+  arrange(desc(fecha))  
+,  fecha, intensidad)
+
+```
+
+
+##MISSING VALUES
+
+#Detectar NAs
+
+
+```{r}
+data <- left_join(PM10981, PM20852, by= "fecha")
+```
+
+
+
+```{r}
+
+na.interpolation(PM10981)
+
+```
+
+```{r}
+
+plotNA.distribution(data$intensidad.y)
+
+```
+
+```{r}
+statsNA(data$intensidad.y)
+```
+
+
+#Reparar
+
+```{r}
+na.interpolation(data$intensidad.y, option ="linear")
+```
+
+
+
+```{r}
+data$intensidad.y <- na.interpolation(data$intensidad.y, option ="linear")
+```
+
+
+```{r}
+statsNA(data$intensidad.y)
+```
+
+
+```{r}
+x1 <- data$intensidad.x
+y <- data$intensidad.y
+
+```
+
+
+```{r}
+time.points <- data$fecha
+#time.points <- as.Date(data$fecha, format = "%Y-%m-%d %H:%M:%S")
+```
+
+```{r}
+data <- zoo(cbind(y, x1), time.points)
+```
+
+```{r}
+anyDuplicated(data$time.points)
+sum(duplicated(data$time.points))
+```
+
+```{r}
+matplot(data, type = "l")
+```
+
+
+```{r}
+
+
+pre.period <- as.POSIXct(c("2017-01-04  00:00:00", "2017-01-05  16:00:00"))
+post.period <- as.POSIXct(c("2017-01-05  16:15:00", "2017-01-05  23:45:00"))
+
+#pre.period <- as.Date(c("2017-04-01  00:00:00", "2017-04-24  00:00:00"))
+#post.period <- as.Date(c("2017-04-25  00:00:00", "2017-04-30  23:45:00"))
+```
+
+
+
+```{r}
+#impact <- CausalImpact(data.regularized, pre.period, post.period)
+
+impact <- CausalImpact(data, pre.period, post.period)
+
+
+plot(impact)
+```
+
+
+
+
