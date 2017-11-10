@@ -1,23 +1,23 @@
 ####################################################################################################################
-# Descarga de los datos meteorolÛgicos desde AEMET
+# Descarga de los datos meteorol√≥gicos desde AEMET
 ####################################################################################################################
 
-# es necesario obtener una API key v·lida durante 5 dÌas en https://opendata.aemet.es/centrodedescargas/altaUsuario?
-# DespuÈs, en https://opendata.aemet.es/centrodedescargas/productosAEMET? introducir la API key 
-# y seleccionar los par·metros de interÈs. Cada consulta nos proporcionar· una url que contiene
-# los datos estilo json. Se guardan en .txt (en este caso "precipitaciones2017.txt) para parsearlo despuÈs.
+# es necesario obtener una API key v√°lida durante 5 d√≠as en https://opendata.aemet.es/centrodedescargas/altaUsuario?
+# Despu√©s, en https://opendata.aemet.es/centrodedescargas/productosAEMET? introducir la API key 
+# y seleccionar los par√°metros de inter√©s. Cada consulta nos proporcionar√° una url que contiene
+# los datos estilo json. Se guardan en .txt (en este caso "precipitaciones2017.txt) para parsearlo despu√©s.
 
 library(rjson)
 library(lubridate)
 
-setwd("~/Escritorio/m30/datasets")
+setwd("~/m30trafico/datasets")
 json_data <- fromJSON(paste(readLines("precipitaciones2017.txt"), collapse="")) #cargamos el txt
 
 #lo transformamos en un dataframe
 
-df <- data.frame() #creamos un dataframe vacÌo
+df <- data.frame() #creamos un dataframe vac√≠o
 
-for(n in json_data){ #funciÛn que va leyendo las variables y va rellenando el dataframe
+for(n in json_data){ #funci√≥n que va leyendo las variables y va rellenando el dataframe
   fecha <- n$fecha #en nuestro caso solo nos interesan la fecha y las precipitaciones
   # indicativo <- n$indicativo
   # nombre <- n$nombre
