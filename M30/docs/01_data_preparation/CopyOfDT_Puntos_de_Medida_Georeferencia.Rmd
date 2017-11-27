@@ -1,0 +1,97 @@
+---
+title: "DT_Puntos_de_Medida_Georeferencia"
+author: "Mikel Uranga"
+date: "11/22/2017"
+output: html_document
+---
+
+```{r}
+#Cargamos las librerias necesarias
+library(readr)
+library(dplyr)
+library(geosphere)
+library(maptools)
+library(sp)
+library(rgdal)
+```
+
+#Carga de Datos
+
+```{r}
+PM_M30 <- read_csv("~/RStudio/Dataton2017/datasets/punto_de_medida/PM_M30.csv")
+```
+
+```{r}
+#Verificamos que no haya duplicados
+PM_M30 <- PM_M30 %>%
+ distinct(cod_cent, nombre, tipo_elem, st_x, st_y, tramo, tipo, sentido)
+```
+
+
+#Análisis GeoEspacial
+
+```{r}
+#Datos de proyecciones
+#Las coordenadas de los puntos de Medida se encuentran en formato ED50, incompatible con muchas de herramientas de análisis utilizadas por lo que las transformamos
+#a formato WGS84
+
+ED50  <- CRS(paste("+proj=utm +zone=30 +ellps=intl +units=m +no_defs"))
+WGS84 <- CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
+
+xy <- PM_M30[, 4:5]
+
+spdf <- SpatialPointsDataFrame(coords = xy, data = PM_M30,
+                               proj4string = ED50)
+
+
+plot(spdf)
+```
+
+
+
+```{r}
+#Se realizan las transformaciones necesarias para preparar los datos a ser representados.
+
+coor_sp = spdf
+class(coor_sp)
+```
+
+
+```{r}
+coor_lat_long <- spTransform(coor_sp, WGS84)
+
+head(coor_lat_long, 1)
+```
+
+```{r}
+coor <- coordinates(coor_lat_long)
+```
+
+
+
+```{r}
+identif <- coor_lat_long$cod_cent
+```
+
+
+```{r}
+geo <- as.data.frame(cbind(identif, coor))
+```
+
+```{r}
+geo 
+```
+
+
+#Guardar Datos
+
+```{r}
+#Se definen las variables de almacenamiento
+file_path <- "~/RStudio/Dataton2017/datasets/punto_de_medida/"
+file_name <- "PM_Georeferencia.csv"
+
+
+#Guardamos los datos finales y tratados en un fichero csv
+write.csv(geo, paste(file_path, file_name, sep=''), row.names=FALSE)
+```
+
