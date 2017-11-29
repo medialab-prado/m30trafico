@@ -15,7 +15,7 @@ opts_knit$set(root.dir="./")
 ```
 
 
-## Preparación del entorno
+## PreparaciÃ³n del entorno
 
 ```{r entorno}
 library(data.table)
@@ -29,7 +29,7 @@ source('./src/definitivos/funciones_opendata.R')
 
 ## Cargar ficheros
 
-    a. Cargamos el fichero con la información normalizada y nos quedamos con los datos necesarios para ejecutar el modelo.
+    a. Cargamos el fichero con la informaciÃ³n normalizada y nos quedamos con los datos necesarios para ejecutar el modelo.
     
 ```{r carga_ficheros}
 dt.analisis   <- as.data.table(read.csv('F:/201711_dataton_opendata_madrid/dat/PM16_dataset.csv'))
@@ -76,7 +76,7 @@ test.analisis   <- dt.analisis[inTrain,]
 
 ```
 
-## Regresión Líneal Múltivariante
+## RegresiÃ³n LÃ­neal MÃºltivariante
 
 ```{r Reg Lineal, echo=TRUE}
 
@@ -113,26 +113,26 @@ saveRDS(lm.M30,'./modelos/lmM30_45min_noprec.RData')
 
 ```
 
-#Análisis de los residuos
+#AnÃ¡lisis de los residuos
 
     a. Supuesto 1: Normalidad
 ```{r analisis residuos 1, echo=TRUE}
 
-residuos<-rstandard(lm.M30) # residuos estándares del modelo ajustado (completo) 
+residuos<-rstandard(lm.M30) # residuos estÃ¡ndares del modelo ajustado (completo) 
 par(mfrow=c(1,3))  
 hist(residuos) # histograma de los residuos estandarizados 
 boxplot(residuos) # diagrama de cajas de los residuos estandarizados 
-qqnorm(residuos) # gráfico de cuantiles de los residuos estandarizados 
+qqnorm(residuos) # grÃ¡fico de cuantiles de los residuos estandarizados 
 qqline(residuos)
 ```
 
     b. Supuesto 2: Varianza de los errores es constante:
-        - No es constante, tiene tendencia lo que indica que hay una variable desconocida que impacta en el tráfico pero no la hemos detectado.
+        - No es constante, tiene tendencia lo que indica que hay una variable desconocida que impacta en el trÃ¡fico pero no la hemos detectado.
     
 ```{r analisis residuos 2, echo=TRUE}
 par(mfrow=c(1,3))  
 
-# gráfico 2D de los valores ajustados vs. los residuos estandarizados 
+# grÃ¡fico 2D de los valores ajustados vs. los residuos estandarizados 
 plot(fitted.values(lm.M30),rstandard(lm.M30), 
      xlab="Valores ajustados", 
      ylab="Residuos estandarizados") 
