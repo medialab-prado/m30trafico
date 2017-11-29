@@ -14,7 +14,7 @@ opts_knit$set(root.dir='./')
 ```
 
 
-## Preparación del entorno
+## PreparaciÃ³n del entorno
 
 ```{r entorno}
 library(data.table)
@@ -30,7 +30,7 @@ source('./src/funciones_opendata.R')
 
 ## Cargar ficheros
 
-    a. Cargamos el fichero con la información normalizada y añadimos los campos necesarios
+    a. Cargamos el fichero con la informaciÃ³n normalizada y aÃ±adimos los campos necesarios
     
 ```{r carga_ficheros}
 ruta <-'F:/201711_dataton_opendata_madrid'
@@ -86,7 +86,7 @@ plot(rf.fit)
 ```
 
 
-  - Realizamos un análisis de la importancia de las variables en cada modelo
+  - Realizamos un anÃ¡lisis de la importancia de las variables en cada modelo
 
 ```{r RF Imp Variables, echo=TRUE}
 rfImp <- varImp(rf.fit, scale = F)
