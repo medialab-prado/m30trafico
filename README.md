@@ -16,9 +16,14 @@ __Promotor__
 
 * Mikel Uranga Barro
 
+__Colaboradoras__
 
-# Shiny App - M30 Traffic Analysis
+* Izaskun López Samaniego
+* Cristina Palomo Garo
 
- https://muranga.shinyapps.io/dataton17_m30/
+
+# Shiny App - M30 Gestión Inteligente del Tráfico
+
+ https://muranga.shinyapps.io/dataton17_m30int/
  
  Se ha creado una shiny app para el consumo de los resultados y servicios generados en el proyecto.
