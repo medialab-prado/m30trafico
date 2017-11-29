@@ -15,3 +15,10 @@ Se analizarán los datos de forma descriptiva para conocer el estado actual y pa
 __Promotor__
 
 * Mikel Uranga Barro
+
+
+# Shiny App - M30 Traffic Analysis
+
+ https://muranga.shinyapps.io/dataton17_m30/
+ 
+ Se ha creado una shiny app para el consumo de los resultados y servicios generados en el proyecto.

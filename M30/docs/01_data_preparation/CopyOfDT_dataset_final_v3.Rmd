@@ -1,0 +1,192 @@
+---
+title: "DT_dataset_final_v3"
+output: html_document
+---
+
+
+
+
+## Preparación del entorno
+
+```{r entorno}
+library(data.table)
+library(lubridate)
+library(caret)
+library(dplyr)
+library(ggplot2)
+
+ruta <-"~/RStudio/Dataton2017/"
+setwd(ruta)
+source('./funciones_opendata.R')
+
+```
+
+
+## Cargar ficheros
+    a. Cargamos el fichero de trafico
+    b. Le agregamos la informaci?n de velocidad y carga de 15, 30 y 45 min
+```{r carga_ficheros}
+s.fichero <- '2016_DatosTrafico.csv'
+s.punto   <- as.data.table(read.csv('./datasets/punto_de_medida/PM_seleccionados.csv'))
+ficheros <- dir('./datasets/trafico/2016')
+
+i.ficheros <- 0
+for (s.fichero in ficheros){
+    s.trafico <- f.carga.ficheros(paste0('./datasets/trafico/2016/',s.fichero), s.punto)
+    s.trafico[, vel.med  :=mean(vmed), by = .(identif)]
+    s.trafico[, carga.med:=mean(carga), by = .(identif)]
+    s.trafico <- s.trafico[!is.na(ds)]
+    
+    i.minutos <- 15
+    for (i in 1:3){
+          dt.tmp <- f.datos.previos(s.trafico, i.minutos*i)
+          s.trafico <- merge(s.trafico, dt.tmp,
+                             by.x = c('identif', 'ds'),
+                             by.y = c('identif', 'ds'),
+                             all.x = FALSE,
+                             all.y = FALSE)
+    }
+    if (i.ficheros == 0) {dt.trafico <- s.trafico
+              i.ficheros <- i.ficheros + 1}
+        else {dt.trafico <- rbind(dt.trafico, s.trafico)}
+    print(nrow(dt.trafico))
+}
+```
+
+
+```{r analisis}
+summary(dt.trafico)
+
+```
+
+```{r analisis}
+str(dt.trafico)
+
+```
+
+
+```{r analisis}
+
+ggplot(dt.trafico, aes(carga)) + geom_bar()
+
+```
+
+
+
+```{r analisis}
+
+ggplot(dt.trafico, aes(vmed)) + geom_bar()
+
+```
+
+
+```{r analisis}
+#Detectamos Puntos de medida con lecturas defectuosas
+pm_defectuosos <- dt.trafico %>% 
+  filter(vmed == -1) %>% 
+  group_by(identif)  %>% 
+  dplyr::summarise(n=n())
+
+```
+
+
+```{r analisis}
+#Eliminamos los Puntos de medida Problemáticos
+dt.trafico <- dt.trafico %>% 
+  filter(!identif %in% pm_defectuosos$identif) 
+```
+
+
+
+```{r}
+#Añadimos variables adicionales de fecha
+dt.trafico <- within(dt.trafico, Hora <- format(dt.trafico$ds, "%H"))
+dt.trafico <- within(dt.trafico, diaSemana <- weekdays(as.Date(dt.trafico$ds)))
+dt.trafico <- within(dt.trafico, diaMes <- format(as.Date(dt.trafico$ds), "%d"))
+dt.trafico <- within(dt.trafico, Mes <- format(as.Date(dt.trafico$ds), "%m"))
+#dt.trafico <- within(dt.trafico, fechaTrunc <- format(as.Date(dt.trafico$ds)))
+dt.trafico <- within(dt.trafico, fechaTrunc <- format(substr(as.character(dt.trafico$ds),1,10)))
+```
+
+
+
+#Meteo
+
+
+```{r}
+precipitaciones <- read_csv("./datasets/meteo/precipitaciones.csv")
+```
+
+```{r}
+#Left join de los datosde tráfico con meteorología
+precipitaciones$fecha <- as.character(precipitaciones$fecha)
+
+dt.trafico <- left_join(dt.trafico, precipitaciones, by = c(fechaTrunc = "fecha"))
+
+```
+
+
+#Calendario
+
+```{r}
+calendario <- read_delim("./datasets/calendario/calendario_2013_2018.csv", 
+    ";", escape_double = FALSE, col_types = cols(Dia = col_date(format = "%d/%m/%Y")), 
+    trim_ws = TRUE)
+```
+
+
+```{r}
+#Left join de los datosde tráfico con el calendario laboral
+calendario$Dia <- as.character(calendario$Dia)
+
+dt.trafico <- left_join(dt.trafico, calendario, by = c(fechaTrunc = "Dia"))
+
+```
+
+
+
+#Escalar variables
+
+```{r}
+#Normalizamos Carga
+
+dt.trafico$carga<- dt.trafico$carga/100
+
+dt.trafico$carga.med<- dt.trafico$carga.med/100
+
+dt.trafico$carga.15<- dt.trafico$carga.15/100
+dt.trafico$carga.30<- dt.trafico$carga.30/100
+dt.trafico$carga.45<- dt.trafico$carga.45/100
+
+```
+
+
+```{r}
+#Normalizamos Vmed
+
+dt.trafico$vmed<- scale(dt.trafico$vmed, center = TRUE, scale= TRUE)
+
+dt.trafico$vel.med<- scale(dt.trafico$vel.med, center = TRUE, scale= TRUE)
+
+dt.trafico$vmed.15<- scale(dt.trafico$vmed.15, center = TRUE, scale= TRUE)
+dt.trafico$vmed.30<- scale(dt.trafico$vmed.30, center = TRUE, scale= TRUE)
+dt.trafico$vmed.45<- scale(dt.trafico$vmed.45, center = TRUE, scale= TRUE)
+
+```
+
+#Guardar Datos
+
+```{r}
+#Se definen las variables de almacenamiento
+file_path <- "./datasets/trafico/"
+file_name <- "PM16_dataset.csv"
+
+
+#Guardamos los datos finales y tratados en un fichero csv
+write.csv(dt.trafico, paste(file_path, file_name, sep=''), row.names=FALSE)
+
+```
+
+
+
+
