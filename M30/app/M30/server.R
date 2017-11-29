@@ -134,7 +134,7 @@ shinyServer(function(input, output) {
     }
       
     
-    Map = ggmap(get_googlemap(center=map_center, scale=2, zoom=12, maptype=input$type, color = map_color), extent="device")
+    Map = ggmap(get_googlemap(center=map_center, scale=2, zoom=12, maptype=input$type, color = map_color, key = "AIzaSyDUeKcY8N8gHK08vjkp1gVh8OBkU88FMD8" ), extent="device" )
     
     
     p <-Map
