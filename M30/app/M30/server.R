@@ -9,6 +9,8 @@ library(markdown)
 library(xml2)
 library(readr)
 library(dplyr)
+library(ggpubr)
+library(lubridate)
 
 ## Define server logic required to summarize and view the selected dataset
 shinyServer(function(input, output) {
@@ -20,6 +22,8 @@ shinyServer(function(input, output) {
             #      months = 6,
                   facet = "none",
                   type = "roadmap",
+                  camera = "camera",
+                  map_type = "vmed_actual",
                   res = TRUE,
                   bw = FALSE,
                   zoom = 14,
@@ -32,53 +36,70 @@ shinyServer(function(input, output) {
                   watermark = "TRUE")
   }
   
-  
-  
+
   ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ## Georeference
   ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   
-  id <- "1070Wbe1C2qad2VooAmbftHG4Rdxt97mE"
-  PM_Georeferencia <- read.csv(sprintf("https://drive.google.com/open?id=1YCYGw744frurRnwBd6UKFSvI6mP3X1hU"))
+  id <- "1DJJVJ7e7UAp3a9pK-Qn3SPnbEkkqbaPr"
+  PM_Georeferencia <-read.csv(sprintf("https://docs.google.com/uc?id=%s&export=download", id))
   
   ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ## Get data from API
   ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   
-  data <- read_xml("http://informo.munimadrid.es/informo/tmadrid/pm.xml")
   
-  codigo <- data %>% xml_find_all("//codigo") %>% xml_text()
-  carga <- data %>% xml_find_all("//carga") %>% xml_text()
+  id <- "1mCwcG_s5_7bum0tS44asu07Oz-M9QS96"
+  data <- read.csv(sprintf("https://docs.google.com/uc?id=%s&export=download", id))
   
-  pm <- as.data.frame(cbind(codigo, carga))
-  #PM_seleccionados <- read_csv("~/RStudio/Dataton2017/shiny/M30_v2/data/PM_seleccionados.csv", col_types = cols(n = col_skip()))
-  pm30 <- pm %>% filter(codigo %in% PM_Georeferencia$identif)
+  #pm <- as.data.frame(cbind(codigo, carga,vmed))
+#  pm30 <- pm %>% filter(codigo %in% PM_Georeferencia$identif)
   
-  Hora <- format(Sys.time(), "%H")
-  diaSemana <- weekdays(as.Date(Sys.Date()))
-  diaMes <- format(Sys.Date(), "%d")
-  Mes <- format(Sys.Date(), "%m")
+  pm30 <- left_join(data, PM_Georeferencia, identif = c("identif"))
+
   
-  pm30 <- as.data.frame(cbind(pm30, Hora, diaSemana, diaMes, Mes))
+  id <- "1NR8y2v0IVkzI2eD24ENJR2oDL4nl7Y1H"
+  calendario <-read_delim(sprintf("https://docs.google.com/uc?id=%s&export=download", id), 
+               ";", escape_double = FALSE, col_types = cols(Dia = col_date(format = "%d/%m/%Y")), 
+               trim_ws = TRUE)
   
+#  calendario <- read_delim(calendario, 
+#                           ";", escape_double = FALSE, col_types = cols(Dia = col_date(format = "%d/%m/%Y")), 
+#                           trim_ws = TRUE)
   
-  colnames(pm30) <- c("identif", "carga.15", "Hora", "diaSemana", "diaMes", "Mes")
+  festivo <- calendario[calendario$Dia == Sys.Date(),]$'laborable / festivo / domingo festivo'
   
-  pm30$carga.15 <- as.numeric(pm30$carga.15)
+  pm30 <- cbind(pm30, festivo)
+  
+  colnames(pm30) <-  c( "identif","carga.15", "intensidad.15", "ocupacion.15", "vmed.15",  "Hora","diaSemana","diaMes","Mes", "longitud", "latitud", "festivo" )
+  
+  pm30$carga.15 <- as.double(pm30$carga.15)
+  pm30$vmed.15 <- as.double(pm30$vmed.15)
+  
   
   ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ## Prediction
   ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   
-  load("~/RStudio/Dataton2017/shiny/M30_v2/model/mRLM15min.RData")
+  #Carga
   
-  #http://informo.munimadrid.es/informo/tmadrid/pm.xml
+  id <- "1zowCLr3N-f9k031WntrJ858ICYQYeYSM"
+  pred_pm30 <- read.csv(sprintf("https://docs.google.com/uc?id=%s&export=download", id))
   
-  prediction <- predict(model, newdata=pm30)
+  pred_pm30 <- left_join(pred_pm30, PM_Georeferencia, identif = c("identif"))
   
-  pred_pm30 <- as.data.frame(cbind(pm30$identif, prediction))
+  colnames(pred_pm30) <- c("identif", "carga", "longitud", "latitud")
   
-  colnames(pred_pm30) <- c("identif", "carga")
+  #Vmed
+  
+  id <- "1yTWd46633gN2ukMYtMqwD14lq6CvdPy-"
+  predV_pm30 <- read.csv(sprintf("https://docs.google.com/uc?id=%s&export=download", id))
+  
+  predV_pm30 <- left_join(predV_pm30, PM_Georeferencia, identif = c("identif"))
+  
+  colnames(predV_pm30) <- c("identif", "vmed", "longitud", "latitud")
+  
+  predV_pm30$vmed <- predV_pm30$vmed*74
   
   ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ## Output 1 - Data Table
@@ -100,30 +121,150 @@ shinyServer(function(input, output) {
     
     #Definir data frame coordenadas
     
+    map_type <- input$map_type
     
+    #map_center = as.numeric(geocode("Madrid"))
+    map_center = as.numeric(geocode(input$poi))
     
-    map_center = as.numeric(geocode("Madrid"))
-    
-    Map = ggmap(get_googlemap(center=map_center, scale=2, zoom=12), extent="device")
-    
-    
-    #prediccion <- left_join(PM_Georeferencia, pred_pm30, by = c(identif = "identif"))
-    
-    
-    p <-Map +
+    if(input$bw ==FALSE){
+      map_color <- "color"
+    }
+    else{
+      map_color <- "bw"
+    }
       
-      geom_point(aes(x=st_x, y=st_y), data=PM_Georeferencia, col="red", alpha=1.0) + labs(x = "Longitud", y = "Latitud")
+    
+    Map = ggmap(get_googlemap(center=map_center, scale=2, zoom=12, maptype=input$type, color = map_color), extent="device")
     
     
+    p <-Map
+   
+    if(map_type =='carga_actual'){
+    gray <- subset(pm30, carga.15=0)  
+    green <- subset(pm30, carga.15>0 & carga.15<=60)
+    yellow <- subset(pm30, carga.15>60 & carga.15<=80)
+    red <- subset(pm30, carga.15>80)  
     
+    p <- p + geom_point(aes(x=longitud, y=latitud), data=gray, col="gray", alpha=1.0) + labs(x = "longitud", y = "latitud")  
+    p <- p + geom_point(aes(x=longitud, y=latitud), data=green, col="green", alpha=1.0) + labs(x = "longitud", y = "latitud")
+    p <- p + geom_point(aes(x=longitud, y=latitud), data=yellow, col="yellow", alpha=1.0) + labs(x = "longitud", y = "latitud")
+    p <- p + geom_point(aes(x=longitud, y=latitud), data=red, col="red", alpha=1.0) + labs(x = "longitud", y = "latitud")
+    }
     
+    if(map_type =='vmed_actual'){
+      
+    vgreen <- subset(pm30, vmed.15>60)
+    vyellow <- subset(pm30, vmed.15>20 & vmed.15<=60)
+    vred <- subset(pm30, vmed.15<=20)
     
+    p <- p + geom_point(aes(x=longitud, y=latitud), data=vgreen, col="green", alpha=1.0) + labs(x = "longitud", y = "latitud")
+    p <- p + geom_point(aes(x=longitud, y=latitud), data=vyellow, col="yellow", alpha=1.0) + labs(x = "longitud", y = "latitud")
+    p <- p + geom_point(aes(x=longitud, y=latitud), data=vred, col="red", alpha=1.0) + labs(x = "longitud", y = "latitud")
+    }
+    
+    if(map_type =='carga_30min'){
+      cgray <- subset(pred_pm30, carga=0 )
+      cgreen <- subset(pred_pm30, carga>0 & carga<=0.6)
+      cyellow <- subset(pred_pm30, carga>0.6 & carga<=0.8)
+      cred <- subset(pred_pm30, carga>0.8)  
+      
+      p <- p + geom_point(aes(x=longitud, y=latitud), data=cgray, col="gray", alpha=1.0) + labs(x = "longitud", y = "latitud")
+      p <- p + geom_point(aes(x=longitud, y=latitud), data=cgreen, col="green", alpha=1.0) + labs(x = "longitud", y = "latitud")
+      p <- p + geom_point(aes(x=longitud, y=latitud), data=cyellow, col="yellow", alpha=1.0) + labs(x = "longitud", y = "latitud")
+      p <- p + geom_point(aes(x=longitud, y=latitud), data=cred, col="red", alpha=1.0) + labs(x = "longitud", y = "latitud")
+    }
+    
+    if(map_type =='vmed_30min'){
+      vgreen <- subset(predV_pm30, vmed>60)
+      vyellow <- subset(predV_pm30, vmed>20 & vmed<=60)
+      vred <- subset(predV_pm30, vmed<=20)
+      
+      p <- p + geom_point(aes(x=longitud, y=latitud), data=vgreen, col="green", alpha=1.0) + labs(x = "longitud", y = "latitud")
+      p <- p + geom_point(aes(x=longitud, y=latitud), data=vyellow, col="yellow", alpha=1.0) + labs(x = "longitud", y = "latitud")
+      p <- p + geom_point(aes(x=longitud, y=latitud), data=vred, col="red", alpha=1.0) + labs(x = "longitud", y = "latitud")
+    }
+    
+   
     print(p)
     
     
     
   }, width = 900, height = 900)
   
+  ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  ## Output 3 - Trend
+  ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  
+  output$trends1 <- renderPlot({
+    
+    id <- "1VyEqe1KE7uzVJOWvEVDpXjIvbmHPnCTo"
+    trend <- read.csv(sprintf("https://docs.google.com/uc?id=%s&export=download", id))
+    
+    trend$ds <- as_datetime(trend$ds)
+    
+    pt1 <- trend %>% 
+      ggplot(aes(x=ds,y=vmed)) + 
+      geom_smooth() + theme_bw()
+    
+    pt2 <- trend %>% 
+      ggplot(aes(x=ds,y=carga)) + 
+      geom_smooth() + theme_bw()
+    
+    pt <- ggarrange(pt1, pt2 , ncol = 1, nrow = 2)
+    
+     print(pt)
+    
+  }, height = 900)
+  
+  ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  ## Output 4 - Camera
+  ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  
+  #http://www.mc30.es/components/com_hotspots/datos/camaras.xml
+  
+ output$camera <- 
+  
+  renderText({ 
+    
+  id <- "1g10ZUEiH7S1cSP5feU1wiEMQbZ79_Mcb"
+  camera_feed <- read.csv(sprintf("https://docs.google.com/uc?id=%s&export=download", id))
   
   
+  cam_id <-  as.character(camera_feed[camera_feed$nombre == input$camera,]$id) 
+  cam_url <-  as.character(camera_feed[camera_feed$nombre == input$camera,]$url) 
+  
+    c(
+    '<img src="',
+    #paste0("http://drive.google.com/uc?export=view&id=", cam_id),
+    paste0("http://", cam_url),
+    '">'
+  )})
+ 
+ ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ ## Output 5 - Status
+ ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 
+ output$status <- renderDataTable({
+   
+   api_url <- "http://www.mc30.es/images/xml/DatosTrafico.xml"
+   data <- read_xml(api_url)
+   
+   nombre <- data %>% xml_find_all("//DatoGlobal//Nombre") %>% xml_text()
+   valor <- data %>% xml_find_all("//DatoGlobal//VALOR") %>% xml_integer()
+   info <- cbind(nombre,valor)
+   
+   retenciones <- data %>% xml_find_all("//DatoTrafico//Retenciones") %>% xml_text()
+   traficoLento <- data %>% xml_find_all("//DatoTrafico//TraficoLento") %>% xml_text()
+   retenciones <- cbind("retenciones",retenciones)
+   traficoLento <- cbind("traficoLento",traficoLento)
+   
+   status <- as.data.frame(rbind(info,retenciones,traficoLento))
+   status <- status %>% filter(!nombre == "fechaActualizacionPMTunel") %>% filter(!nombre == "fechaActualizacionPMSuperficie") %>% filter(!nombre == "CortesImportantesWeb")
+   
+   ## Display df
+   status
+   
+ })
+     
+   
 })

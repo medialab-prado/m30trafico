@@ -1,4 +1,8 @@
 # Define UI 
+
+id <- "1g10ZUEiH7S1cSP5feU1wiEMQbZ79_Mcb"
+cameras <- read.csv(sprintf("https://docs.google.com/uc?id=%s&export=download", id))
+
 shinyUI(pageWithSidebar(
   
   ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -12,9 +16,9 @@ shinyUI(pageWithSidebar(
   sidebarPanel(
     
     wellPanel(
-      helpText(HTML("<b>READY?</b>")),
+      helpText(HTML("<b>UPDATE</b>")),
       HTML("Continue to scroll down and modify the settings. Come back and click this when you are ready to render new plots."),
-      submitButton("Update Graphs and Tables")
+      submitButton("Update Graphs and Plots")
     ),
     
     wellPanel(
@@ -22,51 +26,24 @@ shinyUI(pageWithSidebar(
       
       textInput("poi", "Enter a Location of Interest:", "Madrid"),
       helpText("Examples: Madrid, Manoteras, etc")#,
-      
-      
-      
-   #   sliderInput("Minutes", "Prediction Time:", 
-   #              min = 15, max = 180, step = 1, value = 3) 
+  
    ),
     
     wellPanel(
       helpText(HTML("<b>MAP SETTINGS</b>")),
-      # selectInput("lang", "Display Langauge:", choice = c("en-GB","fr")),
-      selectInput("facet", "Choose Facet Type:", choice = c("none","type", "month", "category")),
+      selectInput("map_type", "Select Map Data:", choice = c("vmed_actual", "carga_actual", "carga_30min", "vmed_30min")),
+      #selectInput("facet", "Choose Facet Type:", choice = c("none","type", "month", "category")),
       selectInput("type", "Choose Google Map Type:", choice = c("roadmap", "satellite", "hybrid","terrain")),    
-      checkboxInput("res", "High Resolution?", TRUE),
-      checkboxInput("bw", "Black & White?", FALSE),
-      sliderInput("zoom", "Zoom Level (Recommended - 14):", 
-                  min = 13, max = 15, step = 1, value = 14)
+      #checkboxInput("res", "High Resolution?", TRUE),
+      checkboxInput("bw", "Black & White?", FALSE)
+    #  sliderInput("zoom", "Zoom Level (Recommended - 14):", min = 13, max = 15, step = 1, value = 14)
     ),
-    
- #   wellPanel(
- #     helpText(HTML("<b>DENSITY PLOT SETTINGS</b>")),
- #      sliderInput("alpharange", "Alpha Range:",
- #                  min = 0, max = 1, step = 0.1, value = c(0.1, 0.4)),
- #      sliderInput("bins", "Number of Bins:", 
- #                  min = 5, max = 50, step = 5, value = 15),
- #      sliderInput("boundwidth", "Boundary Lines Width:", 
- #                  min = 0, max = 1, step = 0.1, value = 0.1),
- #      selectInput("boundcolour", "Boundary Lines Colour:", 
- #                  choice = c("grey95","black", "white", "red", "orange", "yellow", "green", "blue", "purple")),
- #      selectInput("low", "Fill Gradient (Low):", 
- #                  choice = c("yellow", "red", "orange", "green", "blue", "purple", "white", "black", "grey")),
- #      selectInput("high", "Fill Gradient (High):", 
- #                  choice = c("red", "orange", "yellow", "green", "blue", "purple", "white", "black", "grey"))
- #   ),
-    
- #   wellPanel(   
- #     helpText(HTML("<b>MISC. SETTINGS</b>")),
- #     checkboxInput("watermark", "Use Watermark?", TRUE),
- #     helpText("Note: automatically disabled when 'Facet' is used.")
- #   ),
-    
+ 
     wellPanel(
       helpText(HTML("<b>VERSION CONTROL</b>")),
-      HTML('Version 0.2.0'),
+      HTML('Version 0.2.1'),
       HTML('<br>'),
-      HTML('Deployed on 27-Nov-2017'),
+      HTML('Deployed on 29-Nov-2017'),
       HTML('<br>'),
       HTML('<a href="https://github.com/medialab-prado/m30trafico" target="_blank">Code on GitHub</a>')
     ),
@@ -78,22 +55,7 @@ shinyUI(pageWithSidebar(
       HTML('<a href="https://github.com/perogrullo" target="_blank">https://github.com/perogrullo</a>')
     ),
     
- #    wellPanel(
- #     helpText(HTML("<b>OTHER LINKS</b>")),
- #     HTML('<a href="http://bit.ly/blenditbayes" target="_blank">Blog</a>, '),
- #      HTML('<a href="http://bit.ly/github_woobe" target="_blank">Github</a>, '),
- #     HTML('<a href="http://bit.ly/linkedin_jofaichow" target="_blank">LinkedIn</a>, '),
- #     HTML('<a href="http://bit.ly/kaggle_woobe" target="_blank">Kaggle</a>, '),
- #     HTML('<a href="http://bit.ly/cv_jofaichow" target="_blank">Résumé</a>.')
- #   ),
-    
- #    wellPanel(
- #     helpText(HTML("<b>OTHER STUFF</b>")),
- #     HTML('<a href="http://bit.ly/bib_heatmapStock" target="_blank">heatmapStock</a>, '),
- #     HTML('<a href="http://bit.ly/rCrimemap" target="_blank">rCrimemap</a>.'),
- #     HTML('<a href="http://bit.ly/bib_colour1" target="_blank">Funky Colour Palette</a>.')
- #   ),
-    
+ 
     width = 3
     
   ),
@@ -106,15 +68,56 @@ shinyUI(pageWithSidebar(
     tabsetPanel(
       
       ## Core tabs
-      # tabPanel("Introduction", includeMarkdown("docs/introduction.md")),
-      tabPanel("Introduction"),
-      tabPanel("Data", dataTableOutput("datatable")),
+     
+      tabPanel("Introduction",
+               mainPanel(
+                 h1("M30 - Traffic Analysis"),
+                 img(src = "https://upload.wikimedia.org/wikipedia/commons/f/f0/Indicador_M30.png", height = 140, width = 400),
+                 p(""),
+                 p(""),
+                 p(""),
+                 h2("Introduction"),
+                 p(""),
+                 p("Using the Open Data platform of the Madrid City Council we extract and process the existing data sources on car traffic in the city of Madrid, analyze it, design predictive models (looking for patterns) and harmony) and finally  visualize the results that will help the user making smart decisions regarding mobility in a smarter city."),
+                 p(""),
+                 p(""),
+                 h2("Sections"),
+                 p(""),
+                 p("Map - Visualization of live and predictive data"),
+                 p("Trends - How will the traffic develop over the day"),
+                 p("Cameras - Take a look at the real situation of the traffic"),
+                 p("Data - Check the detail of the live data"),
+                 p("Status - The highlights of the M30 health KPIs"),
+                 p("Changes - Just the usual change log"),
+                 p(""),
+                 p(""),
+                 p(""),
+                 p(""),
+                 h2("REMEMBER!"),
+                 p("Each time you make a selection or change any setting you must push the UPDATE button in the upper left corner")
+                 
+               )),
       tabPanel("Map", plotOutput("map")),
       tabPanel("Trends", plotOutput("trends1")),
-      #tabPanel("Related News", includeMarkdown("docs/related_news.md")),
-      #tabPanel("Related News"),
-      #tabPanel("Changes", includeMarkdown("docs/changes.md"))
-      tabPanel("Changes")
+      tabPanel("Cameras", 
+               sidebarPanel(
+                 selectInput('camera', 'Choose Camera Feed:', choice = cameras$nombre)
+               ),
+               htmlOutput("camera")),
+      tabPanel("Data", dataTableOutput("datatable")),
+      tabPanel("Status", dataTableOutput("status")),
+      tabPanel("Changes",
+              mainPanel(
+                h2("Changes"),
+                p(""),
+                p("25-Nov-2017 --- Version 0.1.0 --- First prototype deployed."),
+                p("26-Nov-2017 --- Version 0.1.1 --- minor changes, added information."),
+                p("27-Nov-2017 --- Version 0.1.1 --- added camera feed."),
+                p("28-Nov-2017 --- Version 0.2.0 --- Second prototype deployed."),
+                p("29-Nov-2017 --- Version 0.2.1 --- added trends, added data selection, added status."),
+                p("")
+              
+                ))
       
     ) 
   )
