@@ -1,0 +1,145 @@
+---
+title: "Buscar fechas anteriores"
+author: "IZASKUN LOPEZ-SAMANIEGO"
+date: "14 de noviembre de 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require("knitr")
+opts_knit$set(root.dir="./")
+
+```
+
+
+## Preparación del entorno
+
+```{r entorno}
+library(data.table)
+library(lubridate)
+library(caret)
+
+ruta <-'F:/201711_dataton_opendata_madrid'
+setwd(ruta)
+source('./src/funciones_opendata.R')
+
+```
+
+## Cargar ficheros
+    a. Cargamos el fichero de trafico
+    b. Le agregamos la información de velocidad y carga de 15, 30, 45 y 60 min
+    c. Descargamos el fichero en un csv sin los puntos (PM41453 Y PM31453)
+    
+```{r carga_ficheros}
+s.fichero <- '201603_DatosTrafico.csv'
+s.punto   <- as.data.table(read.csv('./dat/201602_PM_outliers_carga.csv'))
+ficheros <- dir('./dat/datos_trafico')
+
+i.ficheros <- 0
+for (s.fichero in ficheros){
+    s.trafico <- f.carga.ficheros(paste0('./dat/datos_trafico/',s.fichero), s.punto)
+    s.trafico[, vel.med  :=mean(vmed), by = .(identif)]
+    s.trafico[, carga.med:=mean(carga), by = .(identif)]
+    s.trafico <- s.trafico[!is.na(ds)]
+    
+    i.minutos <- 15
+    for (i in 1:9){
+          dt.tmp <- f.datos.previos(s.trafico, i.minutos*i)
+          s.trafico <- merge(s.trafico, dt.tmp,
+                             by.x = c('identif', 'ds'),
+                             by.y = c('identif', 'ds'),
+                             all.x = FALSE,
+                             all.y = FALSE)
+    }
+    if (i.ficheros == 0) {dt.trafico <- s.trafico
+              i.ficheros <- i.ficheros + 1}
+        else {dt.trafico <- rbind(dt.trafico, s.trafico)}
+    print(nrow(dt.trafico))
+}
+dt.trafico<-dt.trafico[!(identif %in% c('PM41453', 'PM31453'))]
+write.table(dt.trafico,
+            file='./dat/trafico_outlier_datos_previos.csv',
+            sep = ';')
+```
+
+## Analizamos laS variable (de carga):
+
+  a. Descriptivo:
+
+    - Existen dos puntos con velocidad -1, los eliminaremos del tratamiento inicial y valoraremos como estimar estos casos posteriormente.
+
+```{r descriptivo, echo=TRUE}
+summary(dt.trafico)
+
+```
+
+  b. Análisis de distribucion:
+
+      - Carga: la trabajamos como uniforme y se divide entre 100 para estandarizarla
+      - Intensidad y ocupacion: son funciones claramente logaritmicas
+      - Velocidad: la tratamos como una normal aunque por la derecha la cola es muy corta
+
+```{r histogramas, echo=TRUE}
+
+par(mfrow=c(2,2))
+hist(dt.trafico$carga, main='Carga')
+hist(dt.trafico$intensidad, main='Intensidad')
+hist(dt.trafico$ocupacion, main='ocupacion')
+hist(dt.trafico$vmed, main='Velocidad Media')
+```
+
+
+  b. Correlacion
+
+    - Velocidad: las variables de velocidad estan muy correladas entre si
+    - Carga: las variables de carga estan muy correladas entre si
+
+```{r Correlacion, echo=TRUE}
+
+descr <- dt.trafico[,-c("identif", "ds", "carga")]
+descrCorr <- cor(descr)
+descrCorr[is.na(descrCorr)] <-0
+highCorr  <- findCorrelation(descrCorr, 0.9)
+col.names.corr <- colnames(descrCorr)[highCorr]
+col.names.corr
+```
+
+    - Velocidad y carga: Trabajamos con la diferencia entre la variable media y la variable del momento anterior en el punto
+    - Carga: trabajamos con la diferencia entre la carga media y la carga del momento anterior en el punto
+
+```{r Variacion_carga, echo=TRUE}
+#dt.trafico.2 <- dt.trafico
+
+dt.trafico[, var.carga.15:=(carga.30-carga.15)/100]
+dt.trafico[, var.carga.30:=(carga.45-carga.30)/100]
+dt.trafico[, var.carga.45:=(carga.60-carga.45)/100]
+
+#dt.trafico.2[, carga.15:=(carga.15-carga.med)/100]
+#dt.trafico.2[, carga.30:=(carga.30-carga.med)/100]
+#dt.trafico.2[, carga.45:=(carga.45-carga.med)/100]
+```
+
+```{r Variacion_velocidad, echo=TRUE}
+
+dt.trafico[, var.vmed.15:=(vmed.30-vmed.15)/vmed.30]
+dt.trafico[, var.vmed.30:=(vmed.45-vmed.30)/vmed.45]
+dt.trafico[, var.vmed.45:=(vmed.60-vmed.45)/vmed.60]
+
+#dt.trafico.2[, vmed.15:=(vmed.15-carga.med)/100]
+#dt.trafico.2[, vmed.30:=(vmed.30-carga.med)/100]
+#dt.trafico.2[, vmed.45:=(vmed.45-carga.med)/100]
+#dt.trafico.2[, vmed.60:=(vmed.60-carga.med)/100]
+```
+    
+```{r Correlacion2, echo=TRUE}
+
+descr <- dt.trafico[,-c("identif", "ds", 
+                          "carga", "intensidad", "ocupacion",
+                          "vmed")]
+descrCorr <- cor(descr)
+descrCorr[is.na(descrCorr)] <-0
+highCorr  <- findCorrelation(descrCorr, 0.9)
+col.names.corr <- colnames(descrCorr)[highCorr]
+col.names.corr
+```
