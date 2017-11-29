@@ -16,7 +16,7 @@ opts_knit$set(root.dir='./')
 ```
 
 
-## Preparación del entorno
+## PreparaciÃ³n del entorno
 
 ```{r entorno}
 library(randomForest)
@@ -31,7 +31,7 @@ source('./src/funciones_opendata.R')
 
 ## Cargar ficheros
 
-    a. Cargamos el fichero con la información normalizada y añadimos los campos necesarios
+    a. Cargamos el fichero con la informaciÃ³n normalizada y aÃ±adimos los campos necesarios
     
 ```{r carga_ficheros}
 dt.analisis <- as.data.table(read.csv('./dat/PM16_dataset.csv'))
