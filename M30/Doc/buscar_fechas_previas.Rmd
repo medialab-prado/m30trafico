@@ -13,7 +13,7 @@ opts_knit$set(root.dir="./")
 ```
 
 
-## PreparaciÛn del entorno
+## Preparaci√≥n del entorno
 
 ```{r entorno}
 library(data.table)
@@ -28,7 +28,7 @@ source('./src/funciones_opendata.R')
 
 ## Cargar ficheros
     a. Cargamos el fichero de trafico
-    b. Le agregamos la informaciÛn de velocidad y carga de 15, 30, 45 y 60 min
+    b. Le agregamos la informaci√≥n de velocidad y carga de 15, 30, 45 y 60 min
     c. Descargamos el fichero en un csv sin los puntos (PM41453 Y PM31453)
     
 ```{r carga_ficheros}
@@ -74,7 +74,7 @@ summary(dt.trafico)
 
 ```
 
-  b. An·lisis de distribucion:
+  b. An√°lisis de distribucion:
 
       - Carga: la trabajamos como uniforme y se divide entre 100 para estandarizarla
       - Intensidad y ocupacion: son funciones claramente logaritmicas
