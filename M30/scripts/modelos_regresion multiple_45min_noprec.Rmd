@@ -1,0 +1,159 @@
+---
+title: "Modelos"
+author: "IZASKUN LOPEZ-SAMANIEGO"
+date: "19 de noviembre de 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require("knitr")
+ruta <-'F:/201711_dataton_opendata_madrid'
+setwd(ruta)
+opts_knit$set(root.dir="./")
+
+```
+
+
+## Preparación del entorno
+
+```{r entorno}
+library(data.table)
+library(lubridate)
+library(caret)
+
+setwd(ruta)
+source('./src/definitivos/funciones_opendata.R')
+
+```
+
+## Cargar ficheros
+
+    a. Cargamos el fichero con la información normalizada y nos quedamos con los datos necesarios para ejecutar el modelo.
+    
+```{r carga_ficheros}
+dt.analisis   <- as.data.table(read.csv('F:/201711_dataton_opendata_madrid/dat/PM16_dataset.csv'))
+
+dt.analisis <- dt.analisis[,list(identif, ds, 
+                                 intensidad, ocupacion, carga,
+                                 vmed, vel.med, carga.med,
+                                 diaSemana, diaMes, Mes, fechaTrunc,
+                                 prec, prec_norm, prec_zscore,
+                                 Dia_semana, laborable...festivo...domingo.festivo,
+                                 Tipo.de.Festivo, Festividad)]
+```
+
+```{r carga_ficheros_datos_prev}
+dt.datos.prev   <- as.data.table(read.csv('F:/201711_dataton_opendata_madrid/dat/trafico_outlier_datos_previos.csv', sep = ';'))
+dt.datos.prev <- dt.datos.prev[,list(identif, ds, 
+                                     carga.1 = carga.45/100,
+                                     vmed.1  = vmed.45/100,
+                                     carga.2 = carga.60/100,
+                                     vmed.2  = vmed.60/100,
+                                     carga.3 = carga.75/100,
+                                     vmed.3  = carga.75/100,
+                                     carga.4 = carga.90/100,
+                                     vmed.4  = vmed.90/100)]
+```
+
+```{r preparar_datos}
+dt.analisis   <- merge(dt.analisis, dt.datos.prev,
+                        by.x = c('identif', 'ds'),
+                        by.y = c('identif', 'ds'),
+                        all.x = FALSE, all.y = FALSE)
+dt.analisis <- Transformacion_variables(dt.analisis)
+```
+
+## Dividimos la muestra en casos de test y casos de training
+
+```{r test_and_testing, echo=TRUE}
+
+inTrain <- sample(1:nrow(dt.analisis),
+                  nrow(dt.analisis)*0.3)
+
+train.analisis  <- dt.analisis[-inTrain,]
+test.analisis   <- dt.analisis[inTrain,]
+
+```
+
+## Regresión Líneal Múltivariante
+
+```{r Reg Lineal, echo=TRUE}
+
+lm.M30 <- lm(carga ~ vel.med   +
+                     carga.med +
+                     carga.1  +
+                     vmed.1   +
+                     carga.2  +
+                     vmed.2   +
+                     carga.3  +
+              #       vmed.3   +
+                     diaMes    +
+                     Mes       +
+              #       prec_norm +
+              #       var.carga.1 +
+              #     var.carga.2 +
+                     var.carga.3 +
+                     var.vmed.1  +
+                     var.vmed.2  +
+                     var.vmed.3  +
+                     diaLunes     +
+                     diaMartes    +
+                     diaMiercoles +
+                     diaJueves    +
+                     diaViernes    +
+                     diaSabado    +
+             #        diaDomingo   +
+                     n.festivo  ,
+             data = train.analisis)
+print(lm.M30$coefficients)
+summary(lm.M30)
+setwd(ruta)
+saveRDS(lm.M30,'./modelos/lmM30_45min_noprec.RData')
+
+```
+
+#Análisis de los residuos
+
+    a. Supuesto 1: Normalidad
+```{r analisis residuos 1, echo=TRUE}
+
+residuos<-rstandard(lm.M30) # residuos estándares del modelo ajustado (completo) 
+par(mfrow=c(1,3))  
+hist(residuos) # histograma de los residuos estandarizados 
+boxplot(residuos) # diagrama de cajas de los residuos estandarizados 
+qqnorm(residuos) # gráfico de cuantiles de los residuos estandarizados 
+qqline(residuos)
+```
+
+    b. Supuesto 2: Varianza de los errores es constante:
+        - No es constante, tiene tendencia lo que indica que hay una variable desconocida que impacta en el tráfico pero no la hemos detectado.
+    
+```{r analisis residuos 2, echo=TRUE}
+par(mfrow=c(1,3))  
+
+# gráfico 2D de los valores ajustados vs. los residuos estandarizados 
+plot(fitted.values(lm.M30),rstandard(lm.M30), 
+     xlab="Valores ajustados", 
+     ylab="Residuos estandarizados") 
+ # dibuja la recta en cero
+abline(h=0)
+```
+   
+#CALCULO RMSE
+  
+  a. Training
+
+```{r RMSE Training, echo=TRUE}
+predict.M30 <- predict(lm.M30, interval = "prediction")
+calculo_error(train.analisis, as.data.table(predict.M30))
+
+```
+
+  b. Test
+
+```{r RMSE Test, echo=TRUE}
+predict.M30 <- predict(lm.M30, test.analisis, interval = "prediction")
+calculo_error(test.analisis, as.data.table(predict.M30))
+
+```

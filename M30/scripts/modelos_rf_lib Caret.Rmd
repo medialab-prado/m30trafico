@@ -1,0 +1,113 @@
+---
+title: "Modelos SVM"
+author: "IZASKUN LOPEZ-SAMANIEGO"
+date: "19 de noviembre de 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require("knitr")
+
+opts_knit$set(root.dir='./')
+
+```
+
+
+## Preparación del entorno
+
+```{r entorno}
+library(data.table)
+library(lubridate)
+library(caret)
+
+ruta <-'F:/201711_dataton_opendata_madrid'
+setwd(ruta)
+
+source('./src/funciones_opendata.R')
+
+```
+
+## Cargar ficheros
+
+    a. Cargamos el fichero con la información normalizada y añadimos los campos necesarios
+    
+```{r carga_ficheros}
+ruta <-'F:/201711_dataton_opendata_madrid'
+setwd(ruta)
+dt.analisis <- as.data.table(read.csv('./dat/PM16_dataset.csv'))
+dt.analisis <- Transformacion_variables(dt.analisis) 
+dt.analisis <- dt.analisis[,list(carga, vel.med, carga.med, 
+                                 #carga.15, vmed.15, 
+                                 carga.30, vmed.30, 
+                                 #carga.45, vmed.45,
+                                 prec_norm, 
+                                 #var.carga.15, var.vmed.15, 
+                                 var.carga.30, var.vmed.30, 
+                                 diaMes, Mes, n.festivo #, 
+                                 #diaLunes, diaMartes, diaMiercoles, diaJueves, diaViernes, 
+                                 #diaSabado, diaDomingo
+                                 )]
+```
+
+## Dividimos la muestra en casos de test y casos de training
+
+```{r test_and_testing, echo=TRUE}
+
+inTrain <- sample(1:nrow(dt.analisis),
+                  nrow(dt.analisis)*0.8)
+
+train.analisis  <- dt.analisis[-inTrain,]
+
+test.analisis   <- dt.analisis[inTrain,]
+
+```
+
+## Test Modelo Random Forest
+
+```{r RF, echo=TRUE}
+
+bootControl <- trainControl(method = "cv", number = 1)
+rf.fit <- train(carga ~. , 
+                 data= train.analisis, 
+                method = "rf", 
+                #tuneLength = 4, 
+                #trControl = bootControl, 
+                scaled = F, 
+                do.trace = T,
+                ntree = 2,
+                importance=T)
+
+
+
+rf.fit
+rf.fit$finalModel
+plot(rf.fit)
+```
+
+
+  - Realizamos un análisis de la importancia de las variables en cada modelo
+
+```{r RF Imp Variables, echo=TRUE}
+rfImp <- varImp(rf.fit, scale = F)
+plot(rfImp, top = 20, main = "RF Importance")
+
+```
+   
+#CALCULO RMSE
+  
+  a. Training
+
+```{r RMSE Training, echo=TRUE}
+predict.M30 <- predict(lm.M30, interval = "prediction")
+calculo_error(train.analisis, as.data.table(predict.M30))
+
+```
+
+  b. Test
+
+```{r RMSE Test, echo=TRUE}
+predict.M30 <- predict(lm.M30, test.analisis, interval = "prediction")
+calculo_error(test.analisis, as.data.table(predict.M30))
+
+```
